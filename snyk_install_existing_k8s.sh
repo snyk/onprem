@@ -56,7 +56,10 @@ EOF
 echo "[+] Installing Snyk's license into replicated"
 replicatedctl license-load < $REPLICATED_LICENSE_FILE
 
-SNYK_UI_URL=`minikube service --namespace=$APP_NAMESPACE web --url`
+REPLICATED_UI_IP=`kubectl get svc replicated-ui | awk '{print $4}' | tail -n 1;`
+REPLICATE_UI_PORT=8800
+REPLICATED_UI_URL=${REPLICATED_UI_IP}:${REPLICATE_UI_PORT}
+
 echo "(*) Replicated console at: $REPLICATED_UI_URL"
 
 # start app
@@ -68,6 +71,16 @@ wait_until "replicatedctl app status inspect | jq -r '.[].State'" "started"
 APP_NAMESPACE=`kubectl get namespace -o jsonpath='{.items[-1:].metadata.name}'`
 echo "(*) App's namespace: $APP_NAMESPACE"
 
-REPLICATED_UI_URL=`minikube service replicated-ui --url`
-echo "(*) Snyk console at: $SNYK_UI_URL"
+SNYK_APP_HOST=`kubectl get no -o wide | awk '{print $6}' | tail -n 1`
+SNYK_DEFAULT_APP_PORT=30443
+SNYK_APP_URL=${SNYK_APP_HOST}:${SNYK_DEFAULT_APP_PORT}
+
+echo "[+] Stopping app"
+replicatedctl app stop
+echo "[+] Starting app"
+replicatedctl app start
+echo "[+] Waiting for app to start"
+wait_until "replicatedctl app status inspect | jq -r '.[].State'" "started"
+
+echo "(*) Snyk url: $SNYK_APP_URL"
 echo "(!) Don't forget to confiure app hostname at the settings page!"
